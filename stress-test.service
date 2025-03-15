@@ -1,0 +1,11 @@
+[Unit]
+Descrption=Automated Stress Test
+After=network.target
+
+[Service]
+ExecStart=/home/gogsnd1/Cloud-Based-Linux-Server-Performance-Remote-Dashboard-Project/stress_test.sh
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
