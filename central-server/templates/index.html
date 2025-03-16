@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Metrics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+
+<h2>System Metrics Dashboard</h2>
+
+<div id="cpuChart"></div>
+<div id="memChart"></div>
+<div id="diskChart"></div>
+<div id="loadChart"></div>
+
+<script>
+async function fetchMetrics() {
+    try {
+        const response = await fetch('/history');  // Use /history instead of /metrics
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            console.error("No data received from /history API.");
+            return;
+        }
+
+        const timestamps = data.map(d => d.timestamp);
+        const cpuData = data.map(d => d.cpu);
+        const memoryData = data.map(d => d.memory);
+        const diskData = data.map(d => d.disk);
+        const loadData = data.map(d => d.load1);
+
+        Plotly.newPlot('cpuChart', [{x: timestamps, y: cpuData, type: 'scatter', mode: 'lines+markers'}], {title:'CPU Usage %'});
+        Plotly.newPlot('memChart', [{x: timestamps, y: memoryData, type: 'scatter', mode: 'lines+markers'}], {title:'Memory Usage %'});
+        Plotly.newPlot('diskChart', [{x: timestamps, y: diskData, type: 'scatter', mode: 'lines+markers'}], {title:'Disk Usage %'});
+        Plotly.newPlot('loadChart', [{x: timestamps, y: loadData, type: 'scatter', mode: 'lines+markers'}], {title:'System Load Average (1 min)'});
+    } catch (error) {
+        console.error("Error fetching data:", error);
+    }
+}
+
+// Fetch data on page load
+fetchMetrics();
+
+// Auto-refresh every 60 seconds
+setInterval(fetchMetrics, 60000);
+</script>
+
+
+</body>
+</html>
