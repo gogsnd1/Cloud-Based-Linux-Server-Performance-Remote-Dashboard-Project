@@ -1,0 +1,67 @@
+from flask import Flask, jsonify, render_template
+import psutil
+import platform
+import time
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
+# Configure SQLite database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///metrics.db'
+db = SQLAlchemy(app)
+
+# Database model
+class Metric(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    cpu_usage_percent = db.Column(db.Float)
+    memory_usage_percent = db.Column(db.Float)
+    disk_usage_percent = db.Column(db.Float)
+    uptime_seconds = db.Column(db.Float)
+    load_1min = db.Column(db.Float)
+    load_5min = db.Column(db.Float)
+    load_15min = db.Column(db.Float)
+
+# Create the database
+with app.app_context():
+    db.create_all()
+
+# Collect and store metrics every minute
+@app.route('/collect_metrics', methods=['POST'])
+def collect_metrics():
+    load1, load5, load15 = psutil.getloadavg()
+    metric = Metric(
+        cpu_usage_percent=psutil.cpu_percent(interval=1),
+        memory_usage_percent=psutil.virtual_memory().percent,
+        disk_usage_percent=psutil.disk_usage('/').percent,
+        load_1min=load_1min,
+        load_5min=load5,
+        load_15min=load15
+    )
+    db.session.add(metric)
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+# API endpoint to get historical data
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    data = Metric.query.order_by(Metric.id.desc()).limit(60).all()  # last 60 records
+    result = [{
+        'timestamp': metric.id,
+        'cpu': metric.cpu_usage_percent,
+        'memory': metric.memory_usage_percent,
+        'disk': metric.disk_usage_percent,
+        'uptime': metric.system_uptime_seconds,
+        'load_avg': [metric.load_1min, metric.load_5min, metric.load_15min]
+    } for metric in data]
+
+    return jsonify(result)
+
+# Frontend webpage serving the GUI
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, debug=True)

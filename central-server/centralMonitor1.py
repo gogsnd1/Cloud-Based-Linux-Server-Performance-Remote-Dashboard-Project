@@ -13,7 +13,7 @@ db = SQLAlchemy(app)
 # Define monitored servers here
 SERVERS = {
     'Server 1': 'http://34.138.191.128:5000/stats',
-    #'Server 2': 'http://192.168.1.11:5000/stats',
+    'Server 2': 'http://34.27.200.243:5000/stats',
 }
 
 # Database model
