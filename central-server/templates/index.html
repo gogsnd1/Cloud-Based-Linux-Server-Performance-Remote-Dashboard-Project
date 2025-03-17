@@ -60,7 +60,7 @@ function loadThresholds() {
 
 async function fetchMetrics() {
     try {
-        const response = await fetch('/history');
+        const response = await fetch('/history'); // Fetch last 50 records
         const data = await response.json();
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -68,47 +68,34 @@ async function fetchMetrics() {
             return;
         }
 
-        const timestamps = data.map(d => d.timestamp);
-        const cpuData = data.map(d => d.cpu);
-        const memoryData = data.map(d => d.memory);
-        const diskData = data.map(d => d.disk);
-        const loadData = data.map(d => d.load1);
+        // Group data by server
+        const servers = {};
+        data.forEach(d => {
+            if (!servers[d.server]) {
+                servers[d.server] = { timestamps: [], cpu: [], memory: [], disk: [], load1: [] };
+            }
+            servers[d.server].timestamps.push(d.timestamp);
+            servers[d.server].cpu.push(d.cpu);
+            servers[d.server].memory.push(d.memory);
+            servers[d.server].disk.push(d.disk);
+            servers[d.server].load1.push(d.load1);
+        });
 
-        // Get user-defined thresholds
-        const cpuThreshold = parseFloat(localStorage.getItem("cpuThreshold")) || 80;
-        const memoryThreshold = parseFloat(localStorage.getItem("memoryThreshold")) || 75;
-        const diskThreshold = parseFloat(localStorage.getItem("diskThreshold")) || 90;
-
-        // Get latest values
-        const latestCpu = cpuData[cpuData.length - 1];
-        const latestMemory = memoryData[memoryData.length - 1];
-        const latestDisk = diskData[diskData.length - 1];
-
-        let notificationMsg = "";
-        if (latestCpu > cpuThreshold) {
-            notificationMsg += `⚠️ CPU usage is high: ${latestCpu}%\n`;
-        }
-        if (latestMemory > memoryThreshold) {
-            notificationMsg += `⚠️ Memory usage is high: ${latestMemory}%\n`;
-        }
-        if (latestDisk > diskThreshold) {
-            notificationMsg += `⚠️ Disk usage is high: ${latestDisk}%\n`;
-        }
-
-        // Display Notification
-        if (notificationMsg) {
-            const notificationDiv = document.getElementById("notifications");
-            notificationDiv.innerText = notificationMsg;
-            notificationDiv.style.display = "block";
-            setTimeout(() => { notificationDiv.style.display = "none"; }, 5000);
+        // Generate traces for each server
+        let cpuTraces = [], memoryTraces = [], diskTraces = [], loadTraces = [];
+        for (const server in servers) {
+            cpuTraces.push({ x: servers[server].timestamps, y: servers[server].cpu, mode: 'lines+markers', name: server });
+            memoryTraces.push({ x: servers[server].timestamps, y: servers[server].memory, mode: 'lines+markers', name: server });
+            diskTraces.push({ x: servers[server].timestamps, y: servers[server].disk, mode: 'lines+markers', name: server });
+            loadTraces.push({ x: servers[server].timestamps, y: servers[server].load1, mode: 'lines+markers', name: server });
         }
 
         // Render Charts
-        Plotly.newPlot('cpuChart', [{x: timestamps, y: cpuData, type: 'scatter', mode: 'lines+markers'}], {title:'CPU Usage %'});
-        Plotly.newPlot('memChart', [{x: timestamps, y: memoryData, type: 'scatter', mode: 'lines+markers'}], {title:'Memory Usage %'});
-        Plotly.newPlot('diskChart', [{x: timestamps, y: diskData, type: 'scatter', mode: 'lines+markers'}], {title:'Disk Usage %'});
-        Plotly.newPlot('loadChart', [{x: timestamps, y: loadData, type: 'scatter', mode: 'lines+markers'}], {title:'System Load Average (1 min)'});
-        
+        Plotly.newPlot('cpuChart', cpuTraces, { title: 'CPU Usage %', xaxis: { title: 'Time' }, yaxis: { title: '%' } });
+        Plotly.newPlot('memChart', memoryTraces, { title: 'Memory Usage %', xaxis: { title: 'Time' }, yaxis: { title: '%' } });
+        Plotly.newPlot('diskChart', diskTraces, { title: 'Disk Usage %', xaxis: { title: 'Time' }, yaxis: { title: '%' } });
+        Plotly.newPlot('loadChart', loadTraces, { title: 'System Load Average (1 min)', xaxis: { title: 'Time' }, yaxis: { title: 'Load' } });
+
     } catch (error) {
         console.error("Error fetching data:", error);
     }
@@ -120,8 +107,8 @@ loadThresholds();
 // Fetch data on page load
 fetchMetrics();
 
-// Auto-refresh every 30 seconds
-setInterval(fetchMetrics, 30000);
+// Auto-refresh every 60 seconds
+setInterval(fetchMetrics, 60000);
 </script>
 
 </body>

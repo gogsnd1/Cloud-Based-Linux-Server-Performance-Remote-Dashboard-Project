@@ -57,7 +57,7 @@ def fetch_metrics():
                 latest_stats[name] = {'error': str(e)}
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(fetch_metrics, 'interval', seconds=60)
+scheduler.add_job(fetch_metrics, 'interval', seconds=30)
 scheduler.start()
 
 @app.route('/stats', methods=['GET'])
